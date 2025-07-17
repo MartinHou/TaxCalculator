@@ -154,7 +154,10 @@
                 chartLabelEffectiveRate: "Effective Tax Rate",
                 xAxisLabel: "Annual Gross Income",
                 yAxisDollarLabel: "Amount ($)",
-                yAxisRateLabel: "Rate (%)"
+                yAxisRateLabel: "Rate (%)",
+                tooltipFederal: "  Federal",
+                tooltipState: "  State (CA+SDI)",
+                tooltipFICA: "  FICA"
             },
             zh: {
                 title: "NRA 税务与收入关系分析 (2025年标准)",
@@ -183,7 +186,10 @@
                 chartLabelEffectiveRate: "有效税率",
                 xAxisLabel: "年度总收入 (Gross Income)",
                 yAxisDollarLabel: "金额 ($)",
-                yAxisRateLabel: "税率 (%)"
+                yAxisRateLabel: "税率 (%)",
+                tooltipFederal: "  联邦税",
+                tooltipState: "  州税 (CA+SDI)",
+                tooltipFICA: "  FICA"
             }
         };
 
@@ -283,7 +289,7 @@
             const employerMatchAmount = pretax401k * (employerMatchPct / 100);
             const postTaxIncome = grossIncome - totalTaxes + employerMatchAmount;
 
-            return { totalTaxes, effectiveTaxRate, annualTakeHomeCash, simplifiedMarginalRate, postTaxIncome };
+            return { totalTaxes, effectiveTaxRate, annualTakeHomeCash, simplifiedMarginalRate, postTaxIncome, federalTax, totalStateTax, ficaTax };
         }
 
         // --- Chart.js Implementation ---
@@ -299,7 +305,7 @@
             const isExempt = document.getElementById('is_exempt_from_fica').checked;
             
             const labels = [];
-            const totalTaxesData = [];
+            const totalTaxesData = [], federalTaxesData = [], stateTaxesData = [], ficaTaxesData = [];
             const effectiveRateData = [];
             const takeHomeData = [];
             const marginalRateData = [];
@@ -320,19 +326,22 @@
                 }
                 const currentIra = (income >= maxIra) ? maxIra : 0;
 
-                const { totalTaxes, effectiveTaxRate, annualTakeHomeCash, simplifiedMarginalRate, postTaxIncome } = calculateMetrics(income, currentHsa, currentK401, currentIra, employerMatchPct, isExempt);
+                const { totalTaxes, effectiveTaxRate, annualTakeHomeCash, simplifiedMarginalRate, postTaxIncome, federalTax, totalStateTax, ficaTax } = calculateMetrics(income, currentHsa, currentK401, currentIra, employerMatchPct, isExempt);
                 totalTaxesData.push(totalTaxes);
                 effectiveRateData.push(effectiveTaxRate);
                 takeHomeData.push(annualTakeHomeCash);
                 marginalRateData.push(simplifiedMarginalRate);
                 postTaxIncomeData.push(postTaxIncome);
+                federalTaxesData.push(federalTax);
+                stateTaxesData.push(totalStateTax);
+                ficaTaxesData.push(ficaTax);
             }
 
-            return { labels, totalTaxesData, effectiveRateData, takeHomeData, marginalRateData, postTaxIncomeData };
+            return { labels, totalTaxesData, effectiveRateData, takeHomeData, marginalRateData, postTaxIncomeData, federalTaxesData, stateTaxesData, ficaTaxesData };
         }
 
         function drawChart() {
-            const { labels, totalTaxesData, effectiveRateData, takeHomeData, marginalRateData, postTaxIncomeData } = generateChartData();
+            const { labels, totalTaxesData, effectiveRateData, takeHomeData, marginalRateData, postTaxIncomeData, federalTaxesData, stateTaxesData, ficaTaxesData } = generateChartData();
             const lang = translations[currentLanguage];
 
             if (taxChart) {
@@ -363,13 +372,35 @@
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
+                                    const lang = translations[currentLanguage];
                                     let label = context.dataset.label || '';
                                     if (label) { label += ': '; }
+                                    
                                     if (context.parsed.y !== null) {
-                                        if (context.dataset.yAxisID === 'yRate') { label += context.parsed.y.toFixed(2) + '%'; }
-                                        else { label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y); }
+                                        if (context.dataset.yAxisID === 'yRate') {
+                                            label += context.parsed.y.toFixed(2) + '%';
+                                        } else {
+                                            label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y);
+                                        }
                                     }
-                                    return label;
+
+                                    // If this is the "Total Tax" dataset, add the breakdown
+                                    if (context.dataset.label === lang.chartLabelTotalTax) {
+                                        const dataIndex = context.dataIndex;
+                                        const federal = federalTaxesData[dataIndex];
+                                        const state = stateTaxesData[dataIndex];
+                                        const fica = ficaTaxesData[dataIndex];
+                                        
+                                        // Chart.js tooltips can accept an array of strings for a single data point label
+                                        return [
+                                            label,
+                                            `${lang.tooltipFederal}: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(federal)}`,
+                                            `${lang.tooltipState}: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(state)}`,
+                                            `${lang.tooltipFICA}: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(fica)}`
+                                        ];
+                                    }
+
+                                    return label; // Return the standard label for all other datasets
                                 }
                             }
                         }
@@ -418,4 +449,4 @@
     </script>
 
 </body>
-</html>
+</ht
