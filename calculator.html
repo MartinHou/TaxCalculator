@@ -71,7 +71,12 @@
             </div>
 
             <h1 data-lang-key="title" class="text-2xl md:text-3xl font-bold text-gray-900 mb-2"></h1>
-            <p data-lang-key="subtitle" class="text-gray-600 mb-8"></p>
+            <p data-lang-key="subtitle" class="text-gray-600 mb-6"></p>
+
+            <!-- NEW: Applicability Instructions -->
+            <div data-lang-key="instructions" class="mb-8 p-4 bg-blue-50 border-l-4 border-blue-400 text-blue-800 rounded-r-lg">
+            </div>
+
 
             <!-- User Input Controls -->
             <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-4 p-6 bg-gray-50 rounded-xl border border-gray-200">
@@ -125,6 +130,10 @@
             en: {
                 title: "NRA Tax & Income Analyzer (2025)",
                 subtitle: "Adjust your savings contributions and employer match to see how your total wealth, take-home cash, and tax rates change with income.",
+                instructions: `
+                    <h3 class="font-bold mb-1">Applicability Note</h3>
+                    <p>This tool is specifically designed for <strong>Chinese citizens working in California as Non-Resident Aliens (NRA)</strong>. It includes special provisions like the U.S.-China Tax Treaty deduction and assumes an NRA filing status. It may not be accurate for other statuses or locations.</p>
+                `,
                 label401k: "Max 401(k) Contribution",
                 labelMatch: "401(k) Employer Match (%)",
                 labelIRA: "Max Intended IRA",
@@ -150,6 +159,10 @@
             zh: {
                 title: "NRA 税务与收入关系分析 (2025年标准)",
                 subtitle: "调整储蓄上限和雇主匹配，查看您的总财富、到手现金及税率变化。",
+                instructions: `
+                    <h3 class="font-bold mb-1">适用范围说明</h3>
+                    <p>本工具专为<strong>作为非居民外籍人士 (NRA) 在加利福尼亚州工作的中国公民</strong>设计。计算中包含了中美税务协定优惠等特殊条款，并基于NRA报税身份。本工具可能不适用于其他身份或地区的税务计算。</p>
+                `,
                 label401k: "401(k) 最大供款",
                 labelMatch: "401(k) 雇主匹配(%)",
                 labelIRA: "计划 IRA 最大供款",
