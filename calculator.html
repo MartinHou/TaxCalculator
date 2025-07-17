@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NRA Tax & Income Analyzer (2025)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .chart-container {
+            position: relative;
+            height: 65vh;
+            width: 100%;
+        }
+        /* Simple toggle switch styles */
+        .lang-toggle-label {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        .lang-toggle-input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .lang-toggle-slider {
+            width: 44px;
+            height: 24px;
+            background-color: #ccc;
+            border-radius: 9999px;
+            transition: background-color 0.2s;
+            position: relative;
+        }
+        .lang-toggle-slider:before {
+            content: '';
+            position: absolute;
+            height: 20px;
+            width: 20px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+        .lang-toggle-input:checked + .lang-toggle-slider {
+            background-color: #2563eb;
+        }
+        .lang-toggle-input:checked + .lang-toggle-slider:before {
+            transform: translateX(20px);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-6 lg:p-8">
+        <div class="relative bg-white rounded-2xl shadow-xl p-6 md:p-8">
+            
+            <!-- Language Switcher -->
+            <div class="absolute top-6 right-8 flex items-center space-x-2">
+                <span id="lang-label-zh" class="text-sm font-medium text-gray-500">中文</span>
+                <label for="language-toggle" class="lang-toggle-label">
+                    <input type="checkbox" id="language-toggle" class="lang-toggle-input">
+                    <span class="lang-toggle-slider"></span>
+                </label>
+                <span id="lang-label-en" class="text-sm font-medium text-blue-600">EN</span>
+            </div>
+
+            <h1 data-lang-key="title" class="text-2xl md:text-3xl font-bold text-gray-900 mb-2"></h1>
+            <p data-lang-key="subtitle" class="text-gray-600 mb-8"></p>
+
+            <!-- User Input Controls -->
+            <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-4 p-6 bg-gray-50 rounded-xl border border-gray-200">
+                <div>
+                    <label for="max_pretax_401k" data-lang-key="label401k" class="block text-sm font-medium text-gray-700 mb-1"></label>
+                    <input type="number" id="max_pretax_401k" value="23500" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2.5">
+                </div>
+                 <div>
+                    <label for="employer_match_pct" data-lang-key="labelMatch" class="block text-sm font-medium text-gray-700 mb-1"></label>
+                    <input type="number" id="employer_match_pct" value="50" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2.5">
+                </div>
+                <div>
+                    <label for="max_intended_ira" data-lang-key="labelIRA" class="block text-sm font-medium text-gray-700 mb-1"></label>
+                    <input type="number" id="max_intended_ira" value="7000" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2.5">
+                </div>
+                <div>
+                    <label for="max_hsa_contribution" data-lang-key="labelHSA" class="block text-sm font-medium text-gray-700 mb-1"></label>
+                    <input type="number" id="max_hsa_contribution" value="3300" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2.5">
+                </div>
+                <div class="flex items-center justify-start mt-2 md:mt-6">
+                    <div class="flex items-center h-full">
+                        <input id="is_exempt_from_fica" type="checkbox" checked class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                        <label for="is_exempt_from_fica" data-lang-key="labelFICA" class="ml-3 block text-sm font-medium text-gray-900"></label>
+                    </div>
+                </div>
+            </div>
+             <div class="mb-8 text-xs text-gray-500 px-2">
+                <p data-lang-key="rules"></p>
+            </div>
+
+            <!-- Chart Canvas -->
+            <div class="chart-container">
+                <canvas id="taxChart"></canvas>
+            </div>
+            
+            <!-- Explanation Section -->
+            <div class="mt-10 pt-6 border-t border-gray-200">
+                <h2 data-lang-key="explanationTitle" class="text-xl font-semibold text-gray-800 mb-3"></h2>
+                <div data-lang-key="explanationContent" class="space-y-4 text-sm text-gray-700">
+                </div>
+            </div>
+        </div>
+        <footer class="text-center text-gray-500 text-xs mt-8">
+            <p data-lang-key="disclaimer"></p>
+        </footer>
+    </div>
+
+    <script>
+        // --- Translation Dictionary ---
+        const translations = {
+            en: {
+                title: "NRA Tax & Income Analyzer (2025)",
+                subtitle: "Adjust your savings contributions and employer match to see how your total wealth, take-home cash, and tax rates change with income.",
+                label401k: "Max 401(k) Contribution",
+                labelMatch: "401(k) Employer Match (%)",
+                labelIRA: "Max Intended IRA",
+                labelHSA: "Max HSA Contribution",
+                labelFICA: "Exempt from FICA",
+                rules: "<strong>*Dynamic Contribution Rules:</strong> 401(k) & HSA contributions ramp up linearly from $50k-$100k income. IRA is contributed only when income exceeds the contribution amount.",
+                explanationTitle: "About the Marginal Tax Rate",
+                explanationContent: `
+                    <p>The <strong>Marginal Tax Rate</strong> on the chart reflects an intuitive concept: at a certain income level, what tax rate will your next dollar of income be subject to?</p>
+                    <p>It's calculated as: <strong>Your Federal Bracket + Your State Bracket + SDI Rate + Applicable FICA Rate</strong>.</p>
+                    <p>This definition clearly shows the combined tax bracket you are in at different income levels, without including the complex chain effects from the phase-out of tax deductions (like the IRA deduction).</p>
+                `,
+                disclaimer: "Disclaimer: This is an estimation for reference only and does not constitute professional tax advice.",
+                chartLabelPostTaxIncome: "Post-Tax Income (incl. Savings/Match)",
+                chartLabelTakeHome: "Annual Take-Home Cash",
+                chartLabelTotalTax: "Total Tax",
+                chartLabelMarginalRate: "Marginal Tax Rate",
+                chartLabelEffectiveRate: "Effective Tax Rate",
+                xAxisLabel: "Annual Gross Income",
+                yAxisDollarLabel: "Amount ($)",
+                yAxisRateLabel: "Rate (%)"
+            },
+            zh: {
+                title: "NRA 税务与收入关系分析 (2025年标准)",
+                subtitle: "调整储蓄上限和雇主匹配，查看您的总财富、到手现金及税率变化。",
+                label401k: "401(k) 最大供款",
+                labelMatch: "401(k) 雇主匹配(%)",
+                labelIRA: "计划 IRA 最大供款",
+                labelHSA: "HSA 最大供款",
+                labelFICA: "免除 FICA 税",
+                rules: "<strong>*动态贡献规则：</strong> 401(k)和HSA在年收入5-10万美元间线性增长至最大值。IRA在年收入超过其贡献额时才开始投入。",
+                explanationTitle: "关于边际税率的定义",
+                explanationContent: `
+                    <p>图表中的 <strong>边际税率 (Marginal Tax Rate)</strong> 反映了一个直观的概念：在某个收入水平上，您下一美元的收入需要按多高的税率来缴税。</p>
+                    <p>它的计算方式是：<strong>您所处的联邦税阶 + 您所处的州税阶 + SDI税率 + 适用的FICA税率</strong>。</p>
+                    <p>这种定义方式可以清晰地展示您在不同收入阶段所对应的综合税率等级，而不会包含因税收优惠（如IRA抵扣）减少而产生的复杂连锁效应。</p>
+                `,
+                disclaimer: "免责声明: 此为估算结果，仅供参考，不构成专业税务建议。",
+                chartLabelPostTaxIncome: "税后总收入 (含储蓄/匹配)",
+                chartLabelTakeHome: "年度到手现金",
+                chartLabelTotalTax: "总税额",
+                chartLabelMarginalRate: "边际税率",
+                chartLabelEffectiveRate: "有效税率",
+                xAxisLabel: "年度总收入 (Gross Income)",
+                yAxisDollarLabel: "金额 ($)",
+                yAxisRateLabel: "税率 (%)"
+            }
+        };
+
+        // --- Tax Calculation Logic (Comments are in English) ---
+        const FEDERAL_TAX_BRACKETS_2025 = [[0, 0.10], [11925, 0.12], [48475, 0.22], [103350, 0.24], [197300, 0.32], [250525, 0.35], [626350, 0.37]];
+        const CA_STANDARD_DEDUCTION_2025 = 5540;
+        const CA_PERSONAL_EXEMPTION_CREDIT_2025 = 154;
+        const CA_TAX_BRACKETS_2025 = [[0, 0.01], [10756, 0.02], [25499, 0.04], [40245, 0.06], [55866, 0.08], [70606, 0.093], [360659, 0.103], [432787, 0.113], [721314, 0.123]];
+        const FICA_SOCIAL_SECURITY_RATE_2025 = 0.062;
+        const FICA_SOCIAL_SECURITY_LIMIT_2025 = 176100;
+        const FICA_MEDICARE_RATE_2025 = 0.0145;
+        const ADDITIONAL_MEDICARE_TAX_RATE_2025 = 0.009;
+        const ADDITIONAL_MEDICARE_TAX_THRESHOLD_2025 = 200000;
+        const CA_SDI_RATE_2025 = 0.012;
+        const US_CHINA_TREATY_DEDUCTION = 5000.00;
+        const SALT_DEDUCTION_CAP = 10000.00;
+        const IRA_DEDUCTION_PHASE_OUT_START = 79000;
+        const IRA_DEDUCTION_PHASE_OUT_END = 89000;
+
+        function calculateProgressiveTax(taxableIncome, brackets) {
+            if (taxableIncome <= 0) return 0;
+            let tax = 0;
+            const sortedBrackets = [...brackets].sort((a, b) => b[0] - a[0]);
+            for (const [limit, rate] of sortedBrackets) {
+                if (taxableIncome > limit) {
+                    tax += (taxableIncome - limit) * rate;
+                    taxableIncome = limit;
+                }
+            }
+            return tax;
+        }
+        
+        function getRateForIncome(taxableIncome, brackets) {
+            if (taxableIncome < 0) taxableIncome = 0;
+            for (let i = brackets.length - 1; i >= 0; i--) {
+                if (taxableIncome >= brackets[i][0]) {
+                    return brackets[i][1];
+                }
+            }
+            return 0;
+        }
+
+        function getDeductibleIra(magi, intendedIraContribution) {
+            if (magi <= IRA_DEDUCTION_PHASE_OUT_START) return intendedIraContribution;
+            if (magi >= IRA_DEDUCTION_PHASE_OUT_END) return 0;
+            const phaseOutRange = IRA_DEDUCTION_PHASE_OUT_END - IRA_DEDUCTION_PHASE_OUT_START;
+            const reductionPercentage = (magi - IRA_DEDUCTION_PHASE_OUT_START) / phaseOutRange;
+            return Math.max(0, intendedIraContribution * (1 - reductionPercentage));
+        }
+
+        function calculateMetrics(grossIncome, hsaContribution, pretax401k, intendedIra, employerMatchPct, isExemptFromFica) {
+            const otherItemizedDeductions = 0;
+            const magiForIra = grossIncome - pretax401k - hsaContribution;
+            const deductibleIra = getDeductibleIra(magiForIra, intendedIra);
+            const caPreTaxDeductions = pretax401k + deductibleIra;
+            const caAgi = grossIncome - caPreTaxDeductions;
+            const caTaxableIncome = Math.max(0, caAgi - CA_STANDARD_DEDUCTION_2025);
+            const caTaxBeforeCredit = calculateProgressiveTax(caTaxableIncome, CA_TAX_BRACKETS_2025);
+            const caTax = Math.max(0, caTaxBeforeCredit - CA_PERSONAL_EXEMPTION_CREDIT_2025);
+            const caSdiTax = grossIncome * CA_SDI_RATE_2025;
+            const totalStateTax = caTax + caSdiTax;
+            const incomeAfterTreaty = Math.max(0, grossIncome - US_CHINA_TREATY_DEDUCTION);
+            const federalPreTaxDeductions = hsaContribution + pretax401k + deductibleIra;
+            const federalAgi = incomeAfterTreaty - federalPreTaxDeductions;
+            const saltDeduction = Math.min(SALT_DEDUCTION_CAP, totalStateTax);
+            const totalItemizedDeductions = saltDeduction + otherItemizedDeductions;
+            const federalTaxableIncome = Math.max(0, federalAgi - totalItemizedDeductions);
+            const federalTax = calculateProgressiveTax(federalTaxableIncome, FEDERAL_TAX_BRACKETS_2025);
+            let ficaTax = 0;
+            let marginalFicaRate = 0;
+            if (!isExemptFromFica) {
+                const socialSecurityTax = Math.min(grossIncome, FICA_SOCIAL_SECURITY_LIMIT_2025) * FICA_SOCIAL_SECURITY_RATE_2025;
+                let medicareTax = grossIncome * FICA_MEDICARE_RATE_2025;
+                if (grossIncome > ADDITIONAL_MEDICARE_TAX_THRESHOLD_2025) {
+                    medicareTax += (grossIncome - ADDITIONAL_MEDICARE_TAX_THRESHOLD_2025) * ADDITIONAL_MEDICARE_TAX_RATE_2025;
+                }
+                ficaTax = socialSecurityTax + medicareTax;
+                
+                if (grossIncome < FICA_SOCIAL_SECURITY_LIMIT_2025) {
+                    marginalFicaRate += FICA_SOCIAL_SECURITY_RATE_2025;
+                }
+                marginalFicaRate += FICA_MEDICARE_RATE_2025;
+                if (grossIncome >= ADDITIONAL_MEDICARE_TAX_THRESHOLD_2025) {
+                    marginalFicaRate += ADDITIONAL_MEDICARE_TAX_RATE_2025;
+                }
+            }
+            const totalTaxes = federalTax + totalStateTax + ficaTax;
+            const totalSavings = pretax401k + hsaContribution + deductibleIra;
+            const annualTakeHomeCash = grossIncome - totalTaxes - totalSavings;
+            const effectiveTaxRate = grossIncome > 0 ? (totalTaxes / grossIncome) * 100 : 0;
+            
+            const marginalFederalRate = getRateForIncome(federalTaxableIncome, FEDERAL_TAX_BRACKETS_2025);
+            const marginalStateRate = getRateForIncome(caTaxableIncome, CA_TAX_BRACKETS_2025);
+            const marginalSdiRate = CA_SDI_RATE_2025;
+            const simplifiedMarginalRate = (marginalFederalRate + marginalStateRate + marginalSdiRate + marginalFicaRate) * 100;
+
+            const employerMatchAmount = pretax401k * (employerMatchPct / 100);
+            const postTaxIncome = grossIncome - totalTaxes + employerMatchAmount;
+
+            return { totalTaxes, effectiveTaxRate, annualTakeHomeCash, simplifiedMarginalRate, postTaxIncome };
+        }
+
+        // --- Chart.js Implementation ---
+        const ctx = document.getElementById('taxChart').getContext('2d');
+        let taxChart;
+        let currentLanguage = 'en';
+
+        function generateChartData() {
+            const maxHsa = parseFloat(document.getElementById('max_hsa_contribution').value) || 0;
+            const maxK401 = parseFloat(document.getElementById('max_pretax_401k').value) || 0;
+            const maxIra = parseFloat(document.getElementById('max_intended_ira').value) || 0;
+            const employerMatchPct = parseFloat(document.getElementById('employer_match_pct').value) || 0;
+            const isExempt = document.getElementById('is_exempt_from_fica').checked;
+            
+            const labels = [];
+            const totalTaxesData = [];
+            const effectiveRateData = [];
+            const takeHomeData = [];
+            const marginalRateData = [];
+            const postTaxIncomeData = [];
+
+            for (let income = 0; income <= 500000; income += 5000) {
+                labels.push(income);
+
+                let currentK401 = 0, currentHsa = 0;
+                const rampUpStart = 50000, rampUpEnd = 100000;
+                if (income >= rampUpEnd) {
+                    currentK401 = maxK401;
+                    currentHsa = maxHsa;
+                } else if (income > rampUpStart) {
+                    const percentage = (income - rampUpStart) / (rampUpEnd - rampUpStart);
+                    currentK401 = maxK401 * percentage;
+                    currentHsa = maxHsa * percentage;
+                }
+                const currentIra = (income >= maxIra) ? maxIra : 0;
+
+                const { totalTaxes, effectiveTaxRate, annualTakeHomeCash, simplifiedMarginalRate, postTaxIncome } = calculateMetrics(income, currentHsa, currentK401, currentIra, employerMatchPct, isExempt);
+                totalTaxesData.push(totalTaxes);
+                effectiveRateData.push(effectiveTaxRate);
+                takeHomeData.push(annualTakeHomeCash);
+                marginalRateData.push(simplifiedMarginalRate);
+                postTaxIncomeData.push(postTaxIncome);
+            }
+
+            return { labels, totalTaxesData, effectiveRateData, takeHomeData, marginalRateData, postTaxIncomeData };
+        }
+
+        function drawChart() {
+            const { labels, totalTaxesData, effectiveRateData, takeHomeData, marginalRateData, postTaxIncomeData } = generateChartData();
+            const lang = translations[currentLanguage];
+
+            if (taxChart) {
+                taxChart.destroy();
+            }
+
+            taxChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: lang.chartLabelPostTaxIncome, data: postTaxIncomeData, borderColor: 'rgb(168, 85, 247)', backgroundColor: 'rgba(168, 85, 247, 0.1)', yAxisID: 'yDollar', fill: true, tension: 0.4, borderWidth: 2.5 },
+                        { label: lang.chartLabelTakeHome, data: takeHomeData, borderColor: 'rgb(34, 197, 94)', backgroundColor: 'rgba(34, 197, 94, 0.1)', yAxisID: 'yDollar', fill: false, tension: 0.4, borderWidth: 2 },
+                        { label: lang.chartLabelTotalTax, data: totalTaxesData, borderColor: 'rgb(239, 68, 68)', backgroundColor: 'rgba(239, 68, 68, 0.1)', yAxisID: 'yDollar', fill: false, tension: 0.4, borderWidth: 1.5, borderDash: [5, 5] },
+                        { label: lang.chartLabelMarginalRate, data: marginalRateData, borderColor: 'rgb(249, 115, 22)', backgroundColor: 'rgba(249, 115, 22, 0.1)', yAxisID: 'yRate', tension: 0.1, borderWidth: 2.5, stepped: true },
+                        { label: lang.chartLabelEffectiveRate, data: effectiveRateData, borderColor: 'rgb(99, 102, 241)', backgroundColor: 'rgba(99, 102, 241, 0.1)', yAxisID: 'yRate', tension: 0.4, borderDash: [5, 5], borderWidth: 1.5 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false, },
+                    scales: {
+                        x: { title: { display: true, text: lang.xAxisLabel, font: { size: 14 } }, ticks: { callback: value => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(labels[value]) } },
+                        yDollar: { type: 'linear', position: 'left', title: { display: true, text: lang.yAxisDollarLabel, font: { size: 14 } }, ticks: { callback: value => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value) } },
+                        yRate: { type: 'linear', position: 'right', title: { display: true, text: lang.yAxisRateLabel, font: { size: 14 } }, ticks: { callback: value => value.toFixed(1) + '%' }, grid: { drawOnChartArea: false }, }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) { label += ': '; }
+                                    if (context.parsed.y !== null) {
+                                        if (context.dataset.yAxisID === 'yRate') { label += context.parsed.y.toFixed(2) + '%'; }
+                                        else { label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y); }
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function setLanguage(lang) {
+            currentLanguage = lang;
+            document.documentElement.lang = lang;
+            
+            const langLabels = {
+                en: document.getElementById('lang-label-en'),
+                zh: document.getElementById('lang-label-zh')
+            };
+            
+            langLabels.en.classList.toggle('text-blue-600', lang === 'en');
+            langLabels.en.classList.toggle('text-gray-500', lang !== 'en');
+            langLabels.zh.classList.toggle('text-blue-600', lang === 'zh');
+            langLabels.zh.classList.toggle('text-gray-500', lang !== 'zh');
+
+
+            document.querySelectorAll('[data-lang-key]').forEach(element => {
+                const key = element.getAttribute('data-lang-key');
+                if (translations[lang][key]) {
+                    element.innerHTML = translations[lang][key];
+                }
+            });
+            drawChart();
+        }
+
+        // --- Event Listeners ---
+        const inputs = document.querySelectorAll('input[type="number"], input[type="checkbox"]');
+        inputs.forEach(input => input.addEventListener('change', drawChart));
+        
+        const langToggle = document.getElementById('language-toggle');
+        langToggle.addEventListener('change', (event) => {
+            setLanguage(event.target.checked ? 'en' : 'zh');
+        });
+
+        // Initial setup
+        setLanguage('en');
+        langToggle.checked = true;
+
+    </script>
+
+</body>
+</html>
